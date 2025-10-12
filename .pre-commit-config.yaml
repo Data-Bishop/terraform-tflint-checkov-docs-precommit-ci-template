@@ -1,0 +1,77 @@
+# Pre-commit configuration (auto-run on git commit)
+#
+# Key points:
+# - Hooks are provided by `antonbabenko/pre-commit-terraform` and `pre-commit/pre-commit-hooks`.
+# - This setup runs formatters, validators, TFLint, terraform-docs, and Checkov locally before commits.
+# - The TFLint hook currently delegates to `.tflint.hcl` in the repository root. Keep that file in sync with CI.
+#
+# Local install steps:
+# 1. Install pre-commit (pip install pre-commit)
+# 2. Install hooks in your repo: pre-commit install
+# 3. Run all hooks once: pre-commit run --all-files
+#
+# Notes:
+# - Hooks are pinned by `rev` for reproducibility. Update `rev` carefully and test before pushing.
+# - Some hooks (e.g., Checkov) can be slow; consider running them only in CI if friction is high.
+
+repos:
+  # Terraform hooks
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.100.0
+    hooks:
+      # Terraform fmt to ensure consistent formatting
+      - id: terraform_fmt
+        name: Terraform format
+        description: Rewrites all Terraform configuration files to a canonical format
+
+      # Terraform validate to check configuration validity
+      - id: terraform_validate
+        name: Terraform validate
+        description: Validates all Terraform configuration files
+        args:
+          - --hook-config=--retry-once-with-cleanup=true
+          - --tf-init-args=-upgrade
+
+      # TFLint to enforce best practices and catch errors
+      - id: terraform_tflint
+        name: Terraform lint
+        description: Validates all Terraform configuration files with TFLint
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+          - --hook-config=--delegate-chdir
+
+      # Terraform docs (optional but recommended)
+      - id: terraform_docs
+        name: Terraform docs
+        description: Inserts/updates documentation in README files
+        args:
+          - --hook-config=--path-to-file=Infrastructure.md
+          - --hook-config=--add-to-existing-file=true
+          - --hook-config=--create-file-if-not-exist=true
+
+      # Checkov for security scanning (optional but recommended)
+      - id: terraform_checkov
+        name: Checkov security scan
+        description: Runs Checkov security scanner
+        args:
+          - --args=--quiet
+          - --args=--framework terraform
+
+  # General pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-yaml
+        name: Check YAML syntax
+        args: ['--unsafe']
+      - id: check-added-large-files
+        name: Check for large files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: detect-private-key
+        name: Detect private keys
